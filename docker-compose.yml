@@ -12,13 +12,18 @@ services:
     container_name: nginx_proxy
     depends_on:
       - app
+      - certbot
     ports:
       - "80:80"
       - "443:443"
     volumes:
       - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./nginx/entrypoint.sh:/entrypoint.sh
       - certbot_certs:/etc/letsencrypt
       - certbot_challenges:/var/www/certbot
+    environment:
+      - DOMAIN=todo-app.theabhipatel.com
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
     restart: always
 
   certbot:
@@ -29,8 +34,8 @@ services:
       - certbot_challenges:/var/www/certbot
       - ./certbot/init.sh:/init.sh
     environment:
-      - DOMAINS=yourdomain.com,www.yourdomain.com
-      - EMAIL=you@example.com
+      - DOMAINS=todo-app.theabhipatel.com
+      - EMAIL=codingwithcod@gmail.com
     entrypoint: ["/bin/sh", "/init.sh"]
     restart: always
 
