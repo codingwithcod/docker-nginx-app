@@ -5,9 +5,24 @@ CERT_PATH="/etc/letsencrypt/live/$DOMAIN/fullchain.pem"
 CONF_PATH="/etc/nginx/conf.d/default.conf"
 TEMPLATE_PATH="/etc/nginx/conf.d/default.conf.template"
 
-# Generate HTTP-only config
 echo "⚙️ Generating HTTP-only config for Nginx..."
-sed "s|{{SSL_BLOCK}}||g" $TEMPLATE_PATH > $CONF_PATH
+# Write HTTP-only config first
+cat > "$CONF_PATH" <<EOF
+server {
+  listen 80;
+  server_name $DOMAIN;
+
+  location /.well-known/acme-challenge/ {
+    root /var/www/certbot;
+  }
+
+  location / {
+    proxy_pass http://app:3000;
+    proxy_set_header Host \$host;
+    proxy_set_header X-Real-IP \$remote_addr;
+  }
+}
+EOF
 
 echo "🚀 Starting temporary Nginx (HTTP only)..."
 nginx &
@@ -18,9 +33,25 @@ while [ ! -f "$CERT_PATH" ]; do
   sleep 2
 done
 
-# Once cert exists, add SSL block dynamically
 echo "🔐 SSL certificate found — enabling HTTPS..."
-SSL_BLOCK=$(cat <<EOF
+
+# Overwrite full config with HTTP + HTTPS blocks
+cat > "$CONF_PATH" <<EOF
+server {
+  listen 80;
+  server_name $DOMAIN;
+
+  location /.well-known/acme-challenge/ {
+    root /var/www/certbot;
+  }
+
+  location / {
+    proxy_pass http://app:3000;
+    proxy_set_header Host \$host;
+    proxy_set_header X-Real-IP \$remote_addr;
+  }
+}
+
 server {
   listen 443 ssl;
   server_name $DOMAIN;
@@ -35,10 +66,6 @@ server {
   }
 }
 EOF
-)
-
-# Inject SSL block into final Nginx config
-sed "s|{{SSL_BLOCK}}|$SSL_BLOCK|g" $TEMPLATE_PATH > $CONF_PATH
 
 echo "♻️ Restarting Nginx with SSL..."
 nginx -s quit
