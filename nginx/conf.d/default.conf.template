@@ -1,0 +1,17 @@
+server {
+  listen 80;
+  server_name ${DOMAIN};
+
+  location /.well-known/acme-challenge/ {
+    root /var/www/certbot;
+  }
+
+  location / {
+    proxy_pass http://app:3000;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+  }
+}
+
+# HTTPS section (only enabled after cert exists)
+{{SSL_BLOCK}}
