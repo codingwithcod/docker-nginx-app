@@ -1,0 +1,39 @@
+version: "3.8"
+
+services:
+  app:
+    build:
+      context: .
+    container_name: nextjs_app
+    restart: always
+
+  nginx:
+    image: nginx:latest
+    container_name: nginx_proxy
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - certbot_certs:/etc/letsencrypt
+      - certbot_challenges:/var/www/certbot
+    restart: always
+
+  certbot:
+    image: certbot/certbot
+    container_name: certbot_ssl
+    volumes:
+      - certbot_certs:/etc/letsencrypt
+      - certbot_challenges:/var/www/certbot
+      - ./certbot/init.sh:/init.sh
+    environment:
+      - DOMAINS=yourdomain.com,www.yourdomain.com
+      - EMAIL=you@example.com
+    entrypoint: ["/bin/sh", "/init.sh"]
+    restart: always
+
+volumes:
+  certbot_certs:
+  certbot_challenges:
